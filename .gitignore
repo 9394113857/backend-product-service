@@ -1,0 +1,62 @@
+# ============================================
+# PYTHON BYTECODE & CACHE
+# ============================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# ============================================
+# ENVIRONMENT FILES
+# ============================================
+venv/
+.env
+.env.*
+*.env
+
+# ============================================
+# DATABASE FILES (SQLite)
+# ============================================
+*.db
+*.sqlite3
+
+# ============================================
+# LOG FILES
+# ============================================
+logs/
+*.log
+*.gz
+
+# Allow docs folder but ignore inside temp files
+docs/*
+!docs/.gitkeep
+
+# ============================================
+# FLASK MIGRATIONS
+# ============================================
+migrations/
+!migrations/README
+!migrations/alembic.ini
+!migrations/script.py.mako
+migrations/versions/
+
+# ============================================
+# OS / EDITOR FILES
+# ============================================
+# Windows & macOS
+Thumbs.db
+.DS_Store
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# ============================================
+# OTHER FILES TO IGNORE
+# ============================================
+*.tmp
+*.bak
+*.swp
