@@ -2,6 +2,7 @@
 # PYTHON BYTECODE & CACHE
 # ============================================
 __pycache__/
+*.pyc
 *.py[cod]
 *.pyo
 *.pyd
