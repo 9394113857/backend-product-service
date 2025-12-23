@@ -1,142 +1,134 @@
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models.product import Product
 
 product_bp = Blueprint("products", __name__)
+angular_product_bp = Blueprint("angular_products", __name__)
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH CHECK (Angular expects this)
 # ============================================================
-@product_bp.get("/")
-def health_check():
-    current_app.logger.info("[PRODUCT-SERVICE] Health check OK")
-    return jsonify({"status": "product-service UP"}), 200
-
-
-# ============================================================
-# Helper: return JSON 404 instead of HTML 404
-# ============================================================
-def product_not_found(id):
-    current_app.logger.warning(f"[PRODUCT] NOT FOUND id={id}")
-    return jsonify({"error": f"Product with id {id} not found"}), 404
+@angular_product_bp.get("/health")
+def angular_health():
+    return jsonify({"status": "angular-product-service UP"}), 200
 
 
 # ============================================================
-# CREATE PRODUCT
+# ANGULAR: ADD PRODUCT
+# POST /api/angularProduct/add
 # ============================================================
-@product_bp.post("/")
+@angular_product_bp.post("/add")
 @jwt_required()
-def create_product():
+def angular_add_product():
     data = request.get_json() or {}
+    seller_id = get_jwt_identity()
 
-    current_app.logger.info(f"[PRODUCT CREATE] Payload={data}")
-
-    # Validation
     if "name" not in data or "price" not in data:
-        current_app.logger.warning("[PRODUCT CREATE] Missing required fields")
         return jsonify({"error": "name and price are required"}), 400
 
-    p = Product(
+    product = Product(
         name=data["name"],
         price=data["price"],
         description=data.get("description", "")
     )
 
-    db.session.add(p)
+    db.session.add(product)
     db.session.commit()
 
-    current_app.logger.info(f"[PRODUCT CREATE] SUCCESS product_id={p.id}")
-
-    return jsonify({"message": "Product created", "product_id": p.id}), 201
+    return jsonify({
+        "_id": product.id,
+        "name": product.name,
+        "price": product.price
+    }), 201
 
 
 # ============================================================
-# GET ALL PRODUCTS
+# ANGULAR: GET ALL PRODUCTS
+# GET /api/angularProduct/get
 # ============================================================
-@product_bp.get("/all")
-@jwt_required()
-def get_products():
-    current_app.logger.info("[PRODUCT LIST] Fetching all products")
-
+@angular_product_bp.get("/get")
+def angular_get_products():
     products = Product.query.all()
 
-    result = [
+    return jsonify([
         {
-            "id": p.id,
+            "_id": p.id,
             "name": p.name,
             "price": p.price,
             "description": p.description
         }
         for p in products
-    ]
-
-    current_app.logger.info(f"[PRODUCT LIST] Count={len(result)}")
-
-    return jsonify(result), 200
+    ]), 200
 
 
 # ============================================================
-# GET PRODUCT BY ID (Graceful error handling)
+# ANGULAR: GET SINGLE PRODUCT
+# GET /api/angularProduct/get/<id>
 # ============================================================
-@product_bp.get("/<int:id>")
-@jwt_required()
-def get_product(id):
-    current_app.logger.info(f"[PRODUCT FETCH] id={id}")
-
-    p = Product.query.get(id)
-    if not p:
-        return product_not_found(id)
-
-    current_app.logger.info(f"[PRODUCT FETCH] FOUND id={id}")
+@angular_product_bp.get("/get/<int:id>")
+def angular_get_product(id):
+    product = Product.query.get(id)
+    if not product:
+        return jsonify({"error": "Product not found"}), 404
 
     return jsonify({
-        "id": p.id,
-        "name": p.name,
-        "price": p.price,
-        "description": p.description
+        "_id": product.id,
+        "name": product.name,
+        "price": product.price,
+        "description": product.description
     }), 200
 
 
 # ============================================================
-# UPDATE PRODUCT
+# ANGULAR: UPDATE PRODUCT
+# PATCH /api/angularProduct/update
 # ============================================================
-@product_bp.put("/<int:id>")
+@angular_product_bp.patch("/update")
 @jwt_required()
-def update_product(id):
+def angular_update_product():
     data = request.get_json() or {}
-    current_app.logger.info(f"[PRODUCT UPDATE] id={id} payload={data}")
 
-    p = Product.query.get(id)
-    if not p:
-        return product_not_found(id)
+    product_id = data.get("productId")
+    updated_data = data.get("updatedData", {})
 
-    p.name = data.get("name", p.name)
-    p.price = data.get("price", p.price)
-    p.description = data.get("description", p.description)
+    if not product_id:
+        return jsonify({"error": "productId required"}), 400
+
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({"error": "Product not found"}), 404
+
+    product.name = updated_data.get("name", product.name)
+    product.price = updated_data.get("price", product.price)
+    product.description = updated_data.get("description", product.description)
 
     db.session.commit()
 
-    current_app.logger.info(f"[PRODUCT UPDATE] SUCCESS id={p.id}")
-
-    return jsonify({"message": "Product updated", "product_id": p.id}), 200
+    return jsonify({
+        "message": "Product updated",
+        "_id": product.id
+    }), 200
 
 
 # ============================================================
-# DELETE PRODUCT
+# ANGULAR: DELETE PRODUCT
+# DELETE /api/angularProduct/delete
 # ============================================================
-@product_bp.delete("/<int:id>")
+@angular_product_bp.delete("/delete")
 @jwt_required()
-def delete_product(id):
-    current_app.logger.info(f"[PRODUCT DELETE] Attempt id={id}")
+def angular_delete_product():
+    data = request.get_json() or {}
+    product_id = data.get("productId")
 
-    p = Product.query.get(id)
-    if not p:
-        return product_not_found(id)
+    if not product_id:
+        return jsonify({"error": "productId required"}), 400
 
-    db.session.delete(p)
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({"error": "Product not found"}), 404
+
+    db.session.delete(product)
     db.session.commit()
-
-    current_app.logger.info(f"[PRODUCT DELETE] SUCCESS id={id}")
 
     return jsonify({"message": "Product deleted"}), 200
