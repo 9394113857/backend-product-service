@@ -7,7 +7,17 @@ product_bp = Blueprint("products", __name__)
 angular_product_bp = Blueprint("angular_products", __name__)
 
 # ============================================================
+# PRODUCT SERVICE HEALTH CHECK (AUTH-STYLE)
+# GET /api/v1/products/
+# ============================================================
+@product_bp.get("/")
+def product_service_health():
+    return jsonify({"status": "product-service UP"}), 200
+
+
+# ============================================================
 # HEALTH CHECK (Angular expects this)
+# GET /api/angularProduct/health
 # ============================================================
 @angular_product_bp.get("/health")
 def angular_health():
