@@ -1,0 +1,8 @@
+git add .gitignore
+git commit -m "Update .gitignore to track all files in docs/"
+git push
+
+In a single line:
+
+We updated the .gitignore file to track all files in the docs/ folder 
+by removing the docs/* rule, committed the changes, and pushed them to the remote repository.

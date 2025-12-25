@@ -1,0 +1,44 @@
+# =====================================================
+# FILE: reset_products_flask_shell.txt
+# PURPOSE: Clear products table using Flask shell (Windows)
+# DB: SQLite (product.db) OR Neon (Render)
+# NOTE: sqlite3 CLI is NOT required
+# =====================================================
+
+# Open PowerShell in:
+# E:\ecommerce-platform\backends\backend-product-service
+
+# Activate virtual environment (if not already active)
+venv\Scripts\activate
+
+# Open Flask shell
+flask shell
+
+# -----------------------------------------------------
+# Inside Flask shell (Python prompt >>>)
+# -----------------------------------------------------
+
+from app.extensions import db
+from app.models.product import Product
+
+# Delete all rows from products table
+db.session.query(Product).delete()
+
+# Commit changes
+db.session.commit()
+
+# Exit shell
+exit()
+
+# -----------------------------------------------------
+# Restart product backend after cleanup
+# -----------------------------------------------------
+
+flask run --port 5002
+
+# -----------------------------------------------------
+# Now test from:
+# - Angular Seller UI (Add Product)
+# - OR curl / Postman
+# Product IDs will start fresh again
+# -----------------------------------------------------
