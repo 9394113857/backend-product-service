@@ -1,2 +1,0 @@
-flask db migrate -m "add image category color to product"
-flask db upgrade

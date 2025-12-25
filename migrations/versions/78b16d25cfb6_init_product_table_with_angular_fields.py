@@ -1,8 +1,8 @@
-"""initial product model
+"""init product table with angular fields
 
-Revision ID: 0cd36fb7bed5
+Revision ID: 78b16d25cfb6
 Revises: 
-Create Date: 2025-12-25 14:35:13.486459
+Create Date: 2025-12-25 14:52:36.474215
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '0cd36fb7bed5'
+revision = '78b16d25cfb6'
 down_revision = None
 branch_labels = None
 depends_on = None
