@@ -1,8 +1,8 @@
-"""init product table with angular fields
+"""add image, category, color to products
 
-Revision ID: 78b16d25cfb6
+Revision ID: b50946817979
 Revises: 
-Create Date: 2025-12-25 14:52:36.474215
+Create Date: 2025-12-25 20:36:18.320158
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '78b16d25cfb6'
+revision = 'b50946817979'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,7 +26,7 @@ def upgrade():
     sa.Column('image', sa.String(length=500), nullable=True),
     sa.Column('category', sa.String(length=100), nullable=True),
     sa.Column('color', sa.String(length=50), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
