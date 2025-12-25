@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models.product import Product
@@ -7,7 +7,7 @@ product_bp = Blueprint("products", __name__)
 angular_product_bp = Blueprint("angular_products", __name__)
 
 # ============================================================
-# PRODUCT SERVICE HEALTH CHECK (AUTH-STYLE)
+# PRODUCT SERVICE HEALTH CHECK
 # GET /api/v1/products/
 # ============================================================
 @product_bp.get("/")
@@ -16,7 +16,7 @@ def product_service_health():
 
 
 # ============================================================
-# HEALTH CHECK (Angular expects this)
+# ANGULAR HEALTH CHECK
 # GET /api/angularProduct/health
 # ============================================================
 @angular_product_bp.get("/health")
@@ -25,22 +25,42 @@ def angular_health():
 
 
 # ============================================================
-# ANGULAR: ADD PRODUCT
+# ANGULAR: ADD PRODUCT  ✅ FIXED
 # POST /api/angularProduct/add
 # ============================================================
 @angular_product_bp.post("/add")
 @jwt_required()
 def angular_add_product():
     data = request.get_json() or {}
-    seller_id = get_jwt_identity()
+    seller_id = get_jwt_identity()  # future use (ownership)
 
-    if "name" not in data or "price" not in data:
+    # ----------------------------
+    # BASIC VALIDATION
+    # ----------------------------
+    name = data.get("name")
+    price = data.get("price")
+
+    if not name or price is None:
         return jsonify({"error": "name and price are required"}), 400
 
+    # ----------------------------
+    # SAFE PRICE CONVERSION
+    # ----------------------------
+    try:
+        price = float(price)
+    except (ValueError, TypeError):
+        return jsonify({"error": "price must be a number"}), 400
+
+    # ----------------------------
+    # CREATE PRODUCT (ALL FIELDS)
+    # ----------------------------
     product = Product(
-        name=data["name"],
-        price=data["price"],
-        description=data.get("description", "")
+        name=name,
+        price=price,
+        description=data.get("description", ""),
+        image=data.get("image", ""),
+        category=data.get("category", ""),
+        color=data.get("color", "")
     )
 
     db.session.add(product)
@@ -49,7 +69,11 @@ def angular_add_product():
     return jsonify({
         "_id": product.id,
         "name": product.name,
-        "price": product.price
+        "price": product.price,
+        "description": product.description,
+        "image": product.image,
+        "category": product.category,
+        "color": product.color
     }), 201
 
 
@@ -66,7 +90,10 @@ def angular_get_products():
             "_id": p.id,
             "name": p.name,
             "price": p.price,
-            "description": p.description
+            "description": p.description,
+            "image": p.image,
+            "category": p.category,
+            "color": p.color
         }
         for p in products
     ]), 200
@@ -86,7 +113,10 @@ def angular_get_product(id):
         "_id": product.id,
         "name": product.name,
         "price": product.price,
-        "description": product.description
+        "description": product.description,
+        "image": product.image,
+        "category": product.category,
+        "color": product.color
     }), 200
 
 
@@ -110,15 +140,15 @@ def angular_update_product():
         return jsonify({"error": "Product not found"}), 404
 
     product.name = updated_data.get("name", product.name)
-    product.price = updated_data.get("price", product.price)
+    product.price = float(updated_data.get("price", product.price))
     product.description = updated_data.get("description", product.description)
+    product.image = updated_data.get("image", product.image)
+    product.category = updated_data.get("category", product.category)
+    product.color = updated_data.get("color", product.color)
 
     db.session.commit()
 
-    return jsonify({
-        "message": "Product updated",
-        "_id": product.id
-    }), 200
+    return jsonify({"message": "Product updated", "_id": product.id}), 200
 
 
 # ============================================================
