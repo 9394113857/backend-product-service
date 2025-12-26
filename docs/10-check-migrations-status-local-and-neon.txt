@@ -1,0 +1,197 @@
+============================================================
+HOW TO CHECK MIGRATIONS STATUS
+(Local DB + Neon DB + VS Code / PowerShell)
+============================================================
+
+PURPOSE
+-------
+• Understand what migrations are applied
+• Verify real DB state (not assumptions)
+• Check Alembic version locally and in Neon
+• Know exactly WHERE to check WHAT
+
+------------------------------------------------------------
+IMPORTANT TRUTH (READ FIRST)
+------------------------------------------------------------
+• Alembic logs are NOT stored in Neon
+• Neon shows DB STATE, not migration commands
+• Migration HISTORY lives in:
+  - Your code repo (migrations/versions/)
+  - alembic_version table (DB side)
+
+------------------------------------------------------------
+STEP 1️⃣ : CHECK MIGRATIONS MANUALLY IN NEON UI
+------------------------------------------------------------
+
+WHERE:
+• Neon Dashboard → Project → Branch → Tables
+
+WHAT TO CHECK:
+
+1) Check applied migration version
+---------------------------------
+Open table:
+  alembic_version
+
+Expected:
+  version_num
+  ------------------
+  b50946817979
+
+✔ This confirms the latest migration is applied
+✔ This is the ONLY place Neon stores migration state
+
+2) Check actual schema (REALITY CHECK)
+--------------------------------------
+Open table:
+  products
+
+Verify columns:
+  id
+  name
+  description
+  price
+  image
+  category
+  color
+  created_at
+
+✔ If columns exist → migration EFFECT is present
+✔ Schema correctness > migration logs
+
+❌ Neon does NOT show:
+  • flask db migrate logs
+  • flask db upgrade logs
+  • timestamps of migrations
+
+------------------------------------------------------------
+STEP 2️⃣ : CHECK MIGRATIONS LOCALLY (LOCAL DB)
+------------------------------------------------------------
+
+WHERE:
+• Local machine
+• SQLite or local PostgreSQL
+
+COMMANDS (PowerShell / Terminal):
+
+1) Check current migration revision
+-----------------------------------
+flask db current
+
+Expected:
+  Current revision(s): b50946817979
+
+2) Check full migration history (CODE SIDE)
+-------------------------------------------
+flask db history
+
+This shows:
+• All migration files
+• Order of revisions
+• What Alembic KNOWS (not DB state)
+
+NOTE:
+• Local DB can be reset
+• Cloud DB should NEVER be reset
+
+------------------------------------------------------------
+STEP 3️⃣ : CHECK NEON USING SQL (MANUAL QUERY)
+------------------------------------------------------------
+
+WHERE:
+• Neon SQL Editor (Web UI)
+
+1) Check migration version
+--------------------------
+SELECT * FROM alembic_version;
+
+Expected:
+  version_num = b50946817979
+
+2) Check table structure
+------------------------
+SELECT
+  column_name,
+  data_type,
+  is_nullable
+FROM information_schema.columns
+WHERE table_name = 'products'
+ORDER BY ordinal_position;
+
+✔ Confirms DB schema matches models
+
+3) (Optional) Check active connections
+--------------------------------------
+SELECT * FROM pg_stat_activity;
+
+Shows:
+• Render service connections
+• Active DB usage
+
+------------------------------------------------------------
+STEP 4️⃣ : CHECK NEON FROM VS CODE / POWERSHELL
+------------------------------------------------------------
+
+USE CASE:
+• You want to confirm Neon status without UI
+• You want Alembic to tell you what is applied
+
+STEP 4.1️⃣ Set Neon DATABASE_URL (TEMPORARY)
+--------------------------------------------
+PowerShell ONLY:
+
+$env:DATABASE_URL="postgresql+psycopg://neondb_owner:YOUR_PASSWORD@ep-holy-mouse-a1qipksy-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+
+(Replace YOUR_PASSWORD with real password)
+
+STEP 4.2️⃣ Check applied migration
+----------------------------------
+flask db current
+
+Expected:
+  Context impl PostgresqlImpl.
+  Current revision(s): b50946817979
+
+✔ Confirms Neon is in sync with Alembic
+
+STEP 4.3️⃣ (DO NOT RUN migrate here)
+------------------------------------
+Allowed:
+  flask db current
+  flask db upgrade (if DB behind)
+  flask db stamp (if DB ahead)
+
+NOT allowed on Neon:
+  flask db migrate
+  flask db init
+  DB reset commands
+
+STEP 4.4️⃣ Cleanup (MANDATORY)
+------------------------------
+Remove-Item Env:DATABASE_URL
+
+------------------------------------------------------------
+FINAL MENTAL MODEL (MEMORIZE THIS)
+------------------------------------------------------------
+• Neon UI → See DB state
+• alembic_version → Source of truth
+• Local DB → Can be reset
+• Cloud DB → Never reset
+• migrate → Create files (local only)
+• upgrade → Apply to DB
+• stamp → Sync Alembic when DB changed manually
+
+------------------------------------------------------------
+SUMMARY TABLE
+------------------------------------------------------------
+
+| Where          | What You See                    |
+|----------------|---------------------------------|
+| Neon UI        | Tables + columns + version      |
+| alembic_version| Applied migration revision      |
+| Local terminal | Alembic logs & history          |
+| VS Code + Neon | Real migration sync status      |
+
+============================================================
+END OF FILE
+============================================================
