@@ -1,5 +1,72 @@
-Server: ep-holy-mouse-a1qipksy-pooler.ap-southeast-1.aws.neon.tech
+✅ SERVER DETAILS:-
+: ep-holy-mouse-a1qipksy-pooler.ap-southeast-1.aws.neon.tech
 Database: neondb
 Port: 5432
 Username: neondb_owner
 Password: npg_8BYrqTPMa1Nn
+
+
+==========================================
+
+🧨 STEP 1 — Clear Alembic history (VERY IMPORTANT)
+
+At the neondb=> prompt, run this ONE command:
+
+DELETE FROM alembic_version;
+
+Expected output
+
+Something like:
+
+DELETE 1
+
+
+or
+
+DELETE 0
+
+
+(both are OK)
+
+🚪 STEP 2 — Exit psql
+\q
+
+
+You should be back to PowerShell.
+
+🧱 STEP 3 — Stamp base (now it WILL work)
+flask db stamp base
+
+Expected (no error):
+Context impl PostgresqlImpl.
+
+🚀 STEP 4 — Apply migrations to Neon
+flask db upgrade
+
+Expected:
+Running upgrade -> 78b16d25cfb6, init product table with angular fields
+
+
+✅ This creates the products table in Neon with:
+
+name
+
+price
+
+description
+
+image
+
+category
+
+color
+
+created_at
+
+🔍 STEP 5 — Verify (optional but good)
+flask db current
+
+
+Expected:
+
+78b16d25cfb6 (head)
