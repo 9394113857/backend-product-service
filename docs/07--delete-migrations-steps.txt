@@ -1,3 +1,0 @@
-$env:DATABASE_URL="postgresql+psycopg://neondb_owner:npg_8BYrqTPMa1Nn@ep-holy-mouse-a1qipksy-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-
-flask db stamp base

@@ -11,6 +11,7 @@
 # Activate virtual environment (if not already active)
 venv\Scripts\activate
 
+# For local system same default use only if cloud set db url and same steps again:-
 # Open Flask shell
 flask shell
 
