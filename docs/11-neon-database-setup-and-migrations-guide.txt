@@ -69,7 +69,11 @@ STEP 4️⃣ : POINT TO NEON DATABASE (TEMPORARY)
 ---------------------------------------------------------
 PowerShell ONLY (VS Code / Windows):
 
+Sample DB URL format:
 $env:DATABASE_URL="postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+
+Pasted Full DB URL:
+psql 'postgresql://neondb_owner:npg_g8GbaMwJS7jK@ep-sweet-rain-a1c7rhca-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 
 ✔ Overrides DB only for this terminal session
 ✔ Does NOT affect code or GitHub

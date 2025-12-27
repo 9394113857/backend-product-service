@@ -1,0 +1,21 @@
+🔹 1️⃣ SET NEW NEON DATABASE_URL
+$env:DATABASE_URL="postgresql://neondb_owner:npg_g8GbaMwJS7jK@ep-sweet-rain-a1c7rhca-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+
+🔹 2️⃣ APPLY MIGRATIONS TO NEON (EMPTY / NEW DB)
+flask db upgrade
+⚠️ If DB already has tables → DO NOT run upgrade
+Use flask db stamp <revision_id> instead
+
+🔹 3️⃣ VERIFY (OPTIONAL BUT GOOD)
+flask db current
+
+🔹 4️⃣ REMOVE DATABASE_URL (SAFE, NO ERRORS)
+if (Test-Path Env:DATABASE_URL) { Remove-Item Env:DATABASE_URL; Write-Host "DATABASE_URL removed" -ForegroundColor Green } else { Write-Host "DATABASE_URL not set" -ForegroundColor Yellow }
+
+
+✅ DONE
+
+Set → Upgrade → (Verify) → Remove
+That’s it.
+
