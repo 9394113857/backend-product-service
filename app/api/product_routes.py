@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from ..extensions import db
 from ..models.product import Product
 
@@ -25,35 +25,25 @@ def angular_health():
 
 
 # ============================================================
-# ANGULAR: ADD PRODUCT  ✅ FIXED
+# ANGULAR: ADD PRODUCT
 # POST /api/angularProduct/add
 # ============================================================
 @angular_product_bp.post("/add")
 @jwt_required()
 def angular_add_product():
     data = request.get_json() or {}
-    seller_id = get_jwt_identity()  # future use (ownership)
 
-    # ----------------------------
-    # BASIC VALIDATION
-    # ----------------------------
     name = data.get("name")
     price = data.get("price")
 
     if not name or price is None:
         return jsonify({"error": "name and price are required"}), 400
 
-    # ----------------------------
-    # SAFE PRICE CONVERSION
-    # ----------------------------
     try:
         price = float(price)
     except (ValueError, TypeError):
         return jsonify({"error": "price must be a number"}), 400
 
-    # ----------------------------
-    # CREATE PRODUCT (ALL FIELDS)
-    # ----------------------------
     product = Product(
         name=name,
         price=price,
@@ -100,12 +90,13 @@ def angular_get_products():
 
 
 # ============================================================
-# ANGULAR: GET SINGLE PRODUCT
+# ANGULAR: GET SINGLE PRODUCT  ✅ ADDED
 # GET /api/angularProduct/get/<id>
 # ============================================================
 @angular_product_bp.get("/get/<int:id>")
-def angular_get_product(id):
+def angular_get_single_product(id):
     product = Product.query.get(id)
+
     if not product:
         return jsonify({"error": "Product not found"}), 404
 
@@ -148,7 +139,10 @@ def angular_update_product():
 
     db.session.commit()
 
-    return jsonify({"message": "Product updated", "_id": product.id}), 200
+    return jsonify({
+        "message": "Product updated",
+        "_id": product.id
+    }), 200
 
 
 # ============================================================
@@ -159,6 +153,7 @@ def angular_update_product():
 @jwt_required()
 def angular_delete_product():
     data = request.get_json() or {}
+
     product_id = data.get("productId")
 
     if not product_id:

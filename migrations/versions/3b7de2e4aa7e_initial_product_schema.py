@@ -1,8 +1,8 @@
-"""add image, category, color to products
+"""initial product schema
 
-Revision ID: b50946817979
+Revision ID: 3b7de2e4aa7e
 Revises: 
-Create Date: 2025-12-25 20:36:18.320158
+Create Date: 2025-12-27 15:19:41.766311
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b50946817979'
+revision = '3b7de2e4aa7e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,7 +26,7 @@ def upgrade():
     sa.Column('image', sa.String(length=500), nullable=True),
     sa.Column('category', sa.String(length=100), nullable=True),
     sa.Column('color', sa.String(length=50), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###

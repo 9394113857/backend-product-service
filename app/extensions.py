@@ -15,17 +15,17 @@ def setup_logging(app):
     if not os.path.exists("logs"):
         os.makedirs("logs")
 
+    handler = TimedRotatingFileHandler(
+        "logs/product.log",
+        when="midnight",
+        backupCount=7,
+        encoding="utf-8",
+    )
+
     formatter = logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
     )
 
-    handler = TimedRotatingFileHandler(
-        "logs/product.log",
-        when="midnight",
-        interval=1,
-        backupCount=30,
-        encoding="utf-8",
-    )
     handler.setFormatter(formatter)
     handler.setLevel(logging.INFO)
 
