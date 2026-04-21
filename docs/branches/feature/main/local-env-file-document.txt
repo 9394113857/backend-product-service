@@ -1,0 +1,24 @@
+# ============================================================
+# 📦 PRODUCT SERVICE - Local Environment Variables:- 
+# ============================================================
+
+# 🗄️ 1. DATABASE (LOCAL)
+DATABASE_URL=sqlite:///product.db
+
+# 🗄️ SUPERBASE DATABASE DETAILS (In local you can also use if you want live DB Intraction context okay):-
+# DATABASE_URL=postgresql://postgres.jaazlcpmowovdsocfmrx:Raghunadh_1992@aws-1-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require
+
+# 🔐 2. JWT (MUST MATCH OTHER SERVICES)
+JWT_SECRET_KEY=9fA3xP@7Rk!2DqM8#ZbLw4^sC0N%YVJH
+
+# 🌱 3. FLASK ENV development
+FLASK_ENV=development
+
+# 🌱 FLASK ENV Production
+# FLASK_ENV=Production
+
+# 🔌 PORT (optional but for local use only):-
+PORT=5002
+
+# 🔌 PORT (optional from local like render gunicorn runtime port but not required):-
+# PORT=10000
