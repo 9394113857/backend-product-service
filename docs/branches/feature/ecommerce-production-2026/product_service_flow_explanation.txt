@@ -1,0 +1,163 @@
+========================================
+PRODUCT SERVICE FLOW (DEBUG LOG EXPLANATION)
+========================================
+
+PROJECT: backend-product-service
+ENV: Local Development (Flask)
+
+----------------------------------------
+STEP 1: SERVER START
+----------------------------------------
+Command:
+flask run --port 5002
+
+Flask Output:
+* Debug mode: off
+WARNING: Development server (not for production)
+Running on: http://127.0.0.1:5002
+
+Meaning:
+✔ Product service is running on port 5002
+✔ Ready to serve API requests
+
+----------------------------------------
+STEP 2: INITIAL PRODUCT FETCH
+----------------------------------------
+LOG:
+"GET /api/angularProduct/get HTTP/1.1" 200
+
+Meaning:
+- Angular frontend requested all products
+- Endpoint:
+    /api/angularProduct/get
+
+Result:
+✔ Products fetched successfully
+✔ Response: 200 OK
+
+----------------------------------------
+STEP 3: MULTIPLE FETCH REQUESTS
+----------------------------------------
+Repeated Logs:
+GET /api/angularProduct/get → 200
+
+Meaning:
+- Angular UI is refreshing/reloading data
+- Possible reasons:
+    ✔ Page reload
+    ✔ Component re-render
+    ✔ Polling / repeated API calls
+
+----------------------------------------
+STEP 4: CORS PREFLIGHT (OPTIONS)
+----------------------------------------
+LOG:
+"OPTIONS /api/angularProduct/get HTTP/1.1" 200
+
+Meaning:
+- Browser sends preflight request before actual GET
+- Validates:
+    ✔ Allowed headers
+    ✔ Allowed methods
+
+Result:
+✔ CORS configured correctly
+
+----------------------------------------
+STEP 5: FETCH SINGLE PRODUCT
+----------------------------------------
+LOG:
+"GET /api/angularProduct/get/1 HTTP/1.1" 200
+
+Meaning:
+- Angular requested product with ID = 1
+- Endpoint:
+    /api/angularProduct/get/<id>
+
+Result:
+✔ Product found
+✔ Data returned successfully
+
+----------------------------------------
+STEP 6: OPTIONS + GET PATTERN
+----------------------------------------
+Pattern seen:
+OPTIONS → GET → 200
+
+Meaning:
+- Standard browser behavior for cross-origin requests
+- Happens when:
+    ✔ Different ports (Angular vs Flask)
+    ✔ Custom headers present
+
+----------------------------------------
+STEP 7: CONTINUOUS USER INTERACTION
+----------------------------------------
+Logs show:
+- Multiple GET all products
+- Multiple GET product by ID
+
+Meaning:
+✔ User navigating product list + detail page
+✔ Angular calling APIs dynamically
+
+----------------------------------------
+STEP 8: GIT STATUS
+----------------------------------------
+Branch:
+feature/ecommerce-production-2026-✅
+
+Status:
+✔ Up to date with origin
+✔ No changes committed
+
+Untracked:
+docs/branches/feature/ecommerce-production-2026/
+
+Meaning:
+⚠ New folder not yet added to Git
+
+Fix:
+git add docs/
+git commit -m "docs: add branch documentation"
+git push
+
+----------------------------------------
+FULL FLOW SUMMARY
+----------------------------------------
+1. Angular → calls GET /products
+2. Flask → returns product list
+3. Angular → calls GET /products/{id}
+4. Flask → returns single product
+5. Browser → sends OPTIONS before some calls
+6. All responses → 200 OK
+
+----------------------------------------
+IMPORTANT NOTES
+----------------------------------------
+⚠ Development server:
+- Not for production
+- Use:
+    ✔ Gunicorn
+    ✔ Nginx
+
+----------------------------------------
+INTERVIEW READY POINTS
+----------------------------------------
+- Why multiple GET calls?
+  → UI refresh / component lifecycle
+
+- What is OPTIONS request?
+  → CORS preflight validation
+
+- Why /get and /get/{id}?
+  → REST design:
+      ✔ Collection endpoint
+      ✔ Resource endpoint
+
+- Why port difference?
+  → Microservices architecture
+
+----------------------------------------
+END OF FILE
+----------------------------------------
