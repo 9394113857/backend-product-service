@@ -23,7 +23,7 @@ git commit -m "Product: Added K8s deployment & service config"
 git push --set-upstream origin k8s-product-deploy
 git push origin feature/k8s-product-deploy
 #(Or) 
-git push
+git push  
 
 
 
@@ -34,6 +34,9 @@ git push
 git checkout main
 git pull origin main
 git checkout -b k8s-cart-deploy
-git add .
+git add . 
 git commit -m "Cart: Added K8s deployment & service config"
-git push origin k8s-cart-deploy
+git push --set-upstream origin k8s-cart-deploy
+git push origin feature/k8s-cart-deploy
+#(Or) 
+git push  
