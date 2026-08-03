@@ -14,5 +14,11 @@ venv/
 
 logs/
 
-# Ignore this folder:-
+# Ignore thase paths
 Enhancements and Practice folder/
+docs/
+practice/
+scripts/
+tests/
+
+
