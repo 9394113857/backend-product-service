@@ -1,20 +1,25 @@
-name: 🚀 CI - Backend Product Service Render
+name: 🚀 CD - Backend Product Service Render
 
 
 on:
 
-  push:
-    branches:
-      - "**"
 
-    tags:
-      - "v*"
-
-
-  pull_request:
-
+  # ===================================================
+  # 🖐️ MANUAL DEPLOYMENT
+  # ===================================================
 
   workflow_dispatch:
+
+
+
+  # ===================================================
+  # ⏰ DAILY DEPLOYMENT CHECK
+  # 2 AM IST = 20:30 UTC previous day
+  # ===================================================
+
+  schedule:
+
+    - cron: "30 20 * * *"
 
 
 
@@ -23,24 +28,17 @@ jobs:
 
 
   # ===================================================
-  # 🧪 BUILD + TEST
+  # 🚀 DEPLOYMENT JOB
   # ===================================================
 
-  build-and-test:
+  deploy:
 
 
-    name: 🧪 Build & Test - ${{ github.ref_name }}
+    name: 🚀 Deploy Backend Product Service
 
 
     runs-on: ubuntu-latest
 
-
-
-    outputs:
-
-      version: ${{ steps.metadata.outputs.version }}
-
-      image: ${{ steps.metadata.outputs.image }}
 
 
 
@@ -65,74 +63,40 @@ jobs:
 
 
 
-      # ===================================================
-      # 🐍 PYTHON
-      # ===================================================
-
-      - name: Setup Python
-
-        uses: actions/setup-python@v5
-
-        with:
-
-          python-version: "3.11"
-
-
-
 
       # ===================================================
-      # 📚 INSTALL
+      # 🔧 SET DEPLOYMENT METADATA
       # ===================================================
 
-      - name: Install Dependencies
-
-        run: |
-
-          pip install --upgrade pip
-
-          pip install -r requirements.txt
-
-          pip install pytest
-
-
-
-
-      # ===================================================
-      # 🧪 TEST
-      # ===================================================
-
-      - name: Run Tests
-
-        env:
-
-          DATABASE_URL: sqlite:///test.db
-
-          SECRET_KEY: testing-secret
-
-          FLASK_ENV: testing
+      - name: Set Deployment Metadata
 
 
         run: |
 
-          PYTHONPATH=. pytest -v
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]
+
+          then
+
+            VERSION=${GITHUB_REF#refs/tags/}
+
+
+          else
+
+
+            VERSION="manual"
+
+
+          fi
 
 
 
 
-
-      # ===================================================
-      # 🔧 METADATA
-      # ===================================================
-
-      - name: Set Metadata
-
-        id: metadata
-
-
-        run: |
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
 
           echo "COMMIT=${GITHUB_SHA}" >> $GITHUB_ENV
+
 
 
 
@@ -140,60 +104,177 @@ jobs:
 
           then
 
-
-            VERSION=${GITHUB_REF#refs/tags/}
-
-            BRANCH="main"
-
-            IMAGE="pythoncodelife/backend-product-service:${VERSION}"
+            echo "BRANCH=main" >> $GITHUB_ENV
 
 
           else
 
-
-            VERSION=${GITHUB_REF_NAME}
-
-            BRANCH=${GITHUB_REF_NAME}
-
-            IMAGE="N/A"
+            echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
 
 
           fi
 
 
 
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
-          echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
+          echo "DEPLOY_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
 
 
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
+          echo "DEPLOY_TIME_IST=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')" >> $GITHUB_ENV
 
 
 
-          echo "BUILD_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+
+          echo "SERVICE_URL=https://backend-product-service-ncl2.onrender.com" >> $GITHUB_ENV
 
 
-          echo "BUILD_TIME_IST=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')" >> $GITHUB_ENV
 
 
 
 
 
       # ===================================================
-      # 📧 CI SUCCESS EMAIL
+      # 🚀 TRIGGER RENDER DEPLOYMENT
       # ===================================================
 
-      - name: Send CI Success Email
+      - name="Trigger Render Deployment"
+
+        run: |
+
+
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+
+
+
+
+
+
+      # ===================================================
+      # ⏳ WAIT FOR APPLICATION STARTUP
+      # ===================================================
+
+      - name: Wait For Application Startup
+
+
+        run: |
+
+
+          echo "Waiting for Render deployment..."
+
+
+
+          for i in {30..1}
+
+          do
+
+            echo "Health check starts in ${i} second(s)..."
+
+            sleep 1
+
+
+          done
+
+
+
+          echo "Starting Health Check..."
+
+
+
+
+
+
+
+      # ===================================================
+      # ❤️ HEALTH CHECK
+      # ===================================================
+
+      - name: Health Check
+
+
+        run: |
+
+
+          echo "Checking application health..."
+
+
+
+          for i in {1..10}
+
+
+          do
+
+
+
+            STATUS=$(curl -s \
+            -o /dev/null \
+            -w "%{http_code}" \
+            "${{ secrets.APPLICATION_HEALTH_URL }}")
+
+
+
+            echo "Health Check Attempt $i of 10 → HTTP $STATUS"
+
+
+
+
+            if [ "$STATUS" = "200" ]
+
+            then
+
+
+              echo "Application is healthy."
+
+              echo "DEPLOY_STATUS=SUCCESS" >> $GITHUB_ENV
+
+
+              exit 0
+
+
+            fi
+
+
+
+
+            sleep 10
+
+
+
+          done
+
+
+
+
+          echo "Health check failed after 10 attempts."
+
+          echo "DEPLOY_STATUS=FAILED" >> $GITHUB_ENV
+
+
+
+          exit 1
+
+
+
+
+
+
+
+      # ===================================================
+      # 📧 DEPLOY SUCCESS EMAIL
+      # ===================================================
+
+      - name: Send Deployment Success Email
+
 
         if: success()
+
 
         uses: dawidd6/action-send-mail@v3
 
 
+
         with:
+
 
 
           server_address: smtp.gmail.com
@@ -203,13 +284,14 @@ jobs:
           secure: true
 
 
+
           username: ${{ secrets.MAIL_USERNAME }}
 
           password: ${{ secrets.MAIL_PASSWORD }}
 
 
 
-          subject: "✅ CI SUCCESS | Backend Product Service"
+          subject: "🚀 DEPLOY SUCCESS | Backend Product Service ${{ env.VERSION }}"
 
 
 
@@ -219,14 +301,153 @@ jobs:
 
 
 
-          from: GitHub Actions CI/CD
+          from: GitHub Actions CD
+
 
 
 
           body: |
 
 
-            ✅ CI SUCCESS
+            🚀 DEPLOYMENT SUCCESS
+
+
+
+            =================================================
+
+
+
+            🌐 SERVICE
+
+            Backend Product Service
+
+
+
+            🔗 URL
+
+            ${{ env.SERVICE_URL }}
+
+
+
+            =================================================
+
+
+
+            🏷️ VERSION
+
+            ${{ env.VERSION }}
+
+
+
+            🔖 COMMIT
+
+            ${{ env.COMMIT }}
+
+
+
+            🌿 BRANCH
+
+            ${{ env.BRANCH }}
+
+
+
+            ⚡ TRIGGER
+
+            ${{ github.event_name }}
+
+
+
+            👤 TRIGGERED BY
+
+            ${{ github.actor }}
+
+
+
+            =================================================
+
+
+
+            ⏰ DEPLOY TIME UTC
+
+            ${{ env.DEPLOY_TIME_UTC }}
+
+
+
+            ⏰ DEPLOY TIME IST
+
+            ${{ env.DEPLOY_TIME_IST }}
+
+
+
+            ❤️ HEALTH STATUS
+
+            ${{ env.DEPLOY_STATUS }}
+
+
+
+
+
+
+
+      # ===================================================
+      # ❌ DEPLOY FAILURE EMAIL
+      # ===================================================
+
+      - name: Send Deployment Failure Email
+
+
+        if: failure()
+
+
+        uses: dawidd6/action-send-mail@v3
+
+
+
+        with:
+
+
+
+          server_address: smtp.gmail.com
+
+          server_port: 465
+
+          secure: true
+
+
+
+          username: ${{ secrets.MAIL_USERNAME }}
+
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+
+
+
+          subject: "❌ DEPLOY FAILED | Backend Product Service"
+
+
+
+
+          to: ${{ secrets.MAIL_TO }}
+
+          cc: ${{ secrets.MAIL_CC }}
+
+
+
+          from: GitHub Actions CD
+
+
+
+
+
+          body: |
+
+
+            ❌ DEPLOYMENT FAILED
+
+
+
+            =================================================
+
 
 
             Repository:
@@ -243,7 +464,7 @@ jobs:
 
             Commit:
 
-            ${{ env.COMMIT }}
+            ${{ github.sha }}
 
 
 
@@ -253,213 +474,28 @@ jobs:
 
 
 
+            Trigger:
 
+            ${{ github.event_name }}
 
 
-      # ===================================================
-      # ❌ CI FAILURE EMAIL
-      # ===================================================
 
-      - name: Send CI Failure Email
+            Triggered By:
 
-        if: failure()
+            ${{ github.actor }}
 
-        uses: dawidd6/action-send-mail@v3
 
 
-        with:
+            =================================================
 
 
-          server_address: smtp.gmail.com
 
-          server_port: 465
+            Please check:
 
-          secure: true
 
 
-          username: ${{ secrets.MAIL_USERNAME }}
+            ❌ GitHub Actions logs
 
-          password: ${{ secrets.MAIL_PASSWORD }}
+            ❌ Render deployment logs
 
-
-
-          subject: "❌ CI FAILED | Backend Product Service"
-
-
-
-          to: ${{ secrets.MAIL_TO }}
-
-          cc: ${{ secrets.MAIL_CC }}
-
-
-
-          from: GitHub Actions CI/CD
-
-
-
-          body: |
-
-
-            ❌ CI FAILED
-
-
-            Repository:
-
-            ${{ github.repository }}
-
-
-
-            Commit:
-
-            ${{ github.sha }}
-
-
-
-
-
-
-
-  # ===================================================
-  # 🐳 DOCKER RELEASE
-  # ===================================================
-
-  docker-release:
-
-
-    name: 🐳 Docker Release
-
-
-    needs:
-
-      - build-and-test
-
-
-
-    if: startsWith(github.ref, 'refs/tags/')
-
-
-
-    runs-on: ubuntu-latest
-
-
-
-    steps:
-
-
-
-      # ===================================================
-      # 📦 CHECKOUT
-      # ===================================================
-
-      - name: Checkout Code
-
-        uses: actions/checkout@v4
-
-
-
-
-
-      # ===================================================
-      # 🐳 LOGIN
-      # ===================================================
-
-      - name: Docker Login
-
-        run: |
-
-
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
-          -u "${{ secrets.DOCKERHUB_USERNAME }}" \
-          --password-stdin
-
-
-
-
-
-      # ===================================================
-      # 🏗️ BUILD IMAGE
-      # ===================================================
-
-      - name: Build Docker Image
-
-
-        run: |
-
-
-          docker build \
-
-          --build-arg APP_VERSION=${{ needs.build-and-test.outputs.version }} \
-
-          --build-arg APP_COMMIT=${GITHUB_SHA} \
-
-          --build-arg APP_BRANCH=main \
-
-          -t ${{ needs.build-and-test.outputs.image }} .
-
-
-
-
-
-
-      # ===================================================
-      # 🔍 VERIFY BUILD INFO
-      # ===================================================
-
-      - name: Verify Build Info
-
-
-        run: |
-
-
-          docker run --rm \
-
-          ${{ needs.build-and-test.outputs.image }} \
-
-          sh -c "cat /app/build_info.json"
-
-
-
-
-
-
-      # ===================================================
-      # 📤 PUSH VERSION
-      # ===================================================
-
-      - name: Push Version Image
-
-
-        run: |
-
-
-          docker push \
-
-          ${{ needs.build-and-test.outputs.image }}
-
-
-
-
-
-
-
-      # ===================================================
-      # 🏷️ PUSH LATEST
-      # ===================================================
-
-      - name: Push Latest Image
-
-
-        run: |
-
-
-          docker tag \
-
-          ${{ needs.build-and-test.outputs.image }} \
-
-          pythoncodelife/backend-product-service:latest
-
-
-
-          docker push \
-
-          pythoncodelife/backend-product-service:latest
+            ❌ Application health endpoint
