@@ -1,465 +1,257 @@
-name: 🚀 CI - Backend Product Service Render
+# =====================================================
+# 🚀 CI - Backend Product Service (FINAL PRODUCTION)
+# =====================================================
 
+name: 🚀 CI - Backend Product Service
 
 on:
-
   push:
     branches:
       - "**"
-
     tags:
       - "v*"
 
-
   pull_request:
-
-
-  workflow_dispatch:
-
-
+    branches:
+      - "**"
 
 
 jobs:
 
-
-  # ===================================================
-  # 🧪 BUILD + TEST
-  # ===================================================
-
-  build-and-test:
-
-
-    name: 🧪 Build & Test - ${{ github.ref_name }}
-
+  build:
 
     runs-on: ubuntu-latest
-
-
-
-    outputs:
-
-      version: ${{ steps.metadata.outputs.version }}
-
-      image: ${{ steps.metadata.outputs.image }}
-
 
 
     steps:
 
 
-
-      # ===================================================
-      # 📦 CHECKOUT
-      # ===================================================
-
-      - name: Checkout Code
-
+      # ===============================
+      # 🟢 Checkout
+      # ===============================
+      - name: Checkout
         uses: actions/checkout@v4
 
-        with:
-
-          fetch-depth: 0
-
-          fetch-tags: true
 
 
-
-
-      # ===================================================
-      # 🐍 PYTHON
-      # ===================================================
-
+      # ===============================
+      # 🐍 Setup Python
+      # ===============================
       - name: Setup Python
-
         uses: actions/setup-python@v5
-
         with:
-
           python-version: "3.11"
 
 
 
-
-      # ===================================================
-      # 📚 INSTALL
-      # ===================================================
-
+      # ===============================
+      # 📦 Install Dependencies
+      # ===============================
       - name: Install Dependencies
-
         run: |
-
-          pip install --upgrade pip
-
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-          pip install pytest
 
 
-
-
-      # ===================================================
-      # 🧪 TEST
-      # ===================================================
-
+      # ===============================
+      # 🧪 Run Tests
+      # ===============================
       - name: Run Tests
-
-        env:
-
-          DATABASE_URL: sqlite:///test.db
-
-          SECRET_KEY: testing-secret
-
-          FLASK_ENV: testing
+        run: |
+          pytest
 
 
+
+      # ===============================
+      # 🏷️ Set Build Version
+      # ===============================
+      - name: Set Version
         run: |
 
-          PYTHONPATH=. pytest -v
-
-
-
-
-
-      # ===================================================
-      # 🔧 METADATA
-      # ===================================================
-
-      - name: Set Metadata
-
-        id: metadata
-
-
-        run: |
-
-
-          echo "COMMIT=${GITHUB_SHA}" >> $GITHUB_ENV
-
-
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]
-
-          then
-
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
 
             VERSION=${GITHUB_REF#refs/tags/}
-
-            BRANCH="main"
-
-            IMAGE="pythoncodelife/backend-product-service:${VERSION}"
-
+            TYPE="TAG"
+            NAME=$VERSION
+            BRANCH="release"
 
           else
 
-
-            VERSION=${GITHUB_REF_NAME}
-
-            BRANCH=${GITHUB_REF_NAME}
-
-            IMAGE="N/A"
-
+            VERSION=dev-${GITHUB_SHA}
+            TYPE="BRANCH"
+            NAME=${GITHUB_REF#refs/heads/}
+            BRANCH=$NAME
 
           fi
 
 
-
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-          echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
-
-
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
-
-
-
-          echo "BUILD_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
-
-
-          echo "BUILD_TIME_IST=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')" >> $GITHUB_ENV
-
-
-
-
-
-      # ===================================================
-      # 📧 CI SUCCESS EMAIL
-      # ===================================================
-
-      - name: Send CI Success Email
-
-        if: success()
-
-        uses: dawidd6/action-send-mail@v3
-
-
-        with:
-
-
-          server_address: smtp.gmail.com
-
-          server_port: 465
-
-          secure: true
-
-
-          username: ${{ secrets.MAIL_USERNAME }}
-
-          password: ${{ secrets.MAIL_PASSWORD }}
-
-
-
-          subject: "✅ CI SUCCESS | Backend Product Service"
-
-
-
-          to: ${{ secrets.MAIL_TO }}
-
-          cc: ${{ secrets.MAIL_CC }}
-
-
-
-          from: GitHub Actions CI/CD
-
-
-
-          body: |
-
-
-            ✅ CI SUCCESS
-
-
-            Repository:
-
-            ${{ github.repository }}
-
-
-
-            Version:
-
-            ${{ env.VERSION }}
-
-
-
-            Commit:
-
-            ${{ env.COMMIT }}
-
-
-
-            Branch:
-
-            ${{ env.BRANCH }}
-
-
-
-
-
-
-      # ===================================================
-      # ❌ CI FAILURE EMAIL
-      # ===================================================
-
-      - name: Send CI Failure Email
-
-        if: failure()
-
-        uses: dawidd6/action-send-mail@v3
-
-
-        with:
-
-
-          server_address: smtp.gmail.com
-
-          server_port: 465
-
-          secure: true
-
-
-          username: ${{ secrets.MAIL_USERNAME }}
-
-          password: ${{ secrets.MAIL_PASSWORD }}
-
-
-
-          subject: "❌ CI FAILED | Backend Product Service"
-
-
-
-          to: ${{ secrets.MAIL_TO }}
-
-          cc: ${{ secrets.MAIL_CC }}
-
-
-
-          from: GitHub Actions CI/CD
-
-
-
-          body: |
-
-
-            ❌ CI FAILED
-
-
-            Repository:
-
-            ${{ github.repository }}
-
-
-
-            Commit:
-
-            ${{ github.sha }}
-
-
-
-
-
-
-
-  # ===================================================
-  # 🐳 DOCKER RELEASE
-  # ===================================================
-
-  docker-release:
-
-
-    name: 🐳 Docker Release
-
-
-    needs:
-
-      - build-and-test
-
-
-
-    if: startsWith(github.ref, 'refs/tags/')
-
-
-
-    runs-on: ubuntu-latest
-
-
-
-    steps:
-
-
-
-      # ===================================================
-      # 📦 CHECKOUT
-      # ===================================================
-
-      - name: Checkout Code
-
-        uses: actions/checkout@v4
-
-
-
-
-
-      # ===================================================
-      # 🐳 LOGIN
-      # ===================================================
-
-      - name: Docker Login
-
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_COMMIT=${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "APP_BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "TYPE=$TYPE" >> $GITHUB_ENV
+          echo "NAME=$NAME" >> $GITHUB_ENV
+
+
+      # ===============================
+      # 📝 Generate Build Info
+      # ===============================
+      - name: Generate build_info.json
         run: |
 
+          cat <<EOF > build_info.json
+          {
+            "version": "${APP_VERSION}",
+            "commit": "${APP_COMMIT}",
+            "branch": "${APP_BRANCH}",
+            "build_time_utc": "$(date -u)",
+            "build_time_ist": "$(TZ=Asia/Kolkata date)"
+          }
+          EOF
 
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
+
+
+      # =====================================================
+      # 🐳 Docker Build & Push (ONLY TAGS)
+      # =====================================================
+      - name: Docker Login
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" |
+          docker login \
           -u "${{ secrets.DOCKERHUB_USERNAME }}" \
           --password-stdin
 
 
 
-
-
-      # ===================================================
-      # 🏗️ BUILD IMAGE
-      # ===================================================
-
       - name: Build Docker Image
-
-
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-
 
           docker build \
-
-          --build-arg APP_VERSION=${{ needs.build-and-test.outputs.version }} \
-
-          --build-arg APP_COMMIT=${GITHUB_SHA} \
-
-          --build-arg APP_BRANCH=main \
-
-          -t ${{ needs.build-and-test.outputs.image }} .
+            --build-arg APP_VERSION=${APP_VERSION} \
+            --build-arg APP_COMMIT=${APP_COMMIT} \
+            --build-arg APP_BRANCH=${APP_BRANCH} \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/backend-product-service:${APP_VERSION} \
+            .
 
 
 
-
-
-
-      # ===================================================
-      # 🔍 VERIFY BUILD INFO
-      # ===================================================
-
-      - name: Verify Build Info
-
-
+      - name: Push Docker Image
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-
-
-          docker run --rm \
-
-          ${{ needs.build-and-test.outputs.image }} \
-
-          sh -c "cat /app/build_info.json"
-
-
-
-
-
-
-      # ===================================================
-      # 📤 PUSH VERSION
-      # ===================================================
-
-      - name: Push Version Image
-
-
-        run: |
-
 
           docker push \
-
-          ${{ needs.build-and-test.outputs.image }}
-
+          ${{ secrets.DOCKERHUB_USERNAME }}/backend-product-service:${APP_VERSION}
 
 
-
-
-
-
-      # ===================================================
-      # 🏷️ PUSH LATEST
-      # ===================================================
 
       - name: Push Latest Image
-
+        if: |
+          startsWith(github.ref, 'refs/tags/') &&
+          github.ref == 'refs/tags/latest'
 
         run: |
 
-
           docker tag \
-
-          ${{ needs.build-and-test.outputs.image }} \
-
-          pythoncodelife/backend-product-service:latest
-
+          ${{ secrets.DOCKERHUB_USERNAME }}/backend-product-service:${APP_VERSION} \
+          ${{ secrets.DOCKERHUB_USERNAME }}/backend-product-service:latest
 
 
           docker push \
+          ${{ secrets.DOCKERHUB_USERNAME }}/backend-product-service:latest
 
-          pythoncodelife/backend-product-service:latest
+
+
+      # ===============================
+      # 📧 CI Success Email
+      # ===============================
+      - name: 📧 CI Success Email
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+
+        with:
+
+          server_address: smtp.gmail.com
+          server_port: 587
+
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+          subject: "🚀 CI SUCCESS - Backend Product Service"
+
+          to: ${{ secrets.MAIL_TO }}
+          cc: ${{ secrets.MAIL_CC }}
+
+          from: ${{ secrets.MAIL_USERNAME }}
+
+          body: |
+
+            🚀 CI BUILD SUCCESS
+
+            Application:
+            Backend Product Service
+
+
+            Version:
+            ${{ env.APP_VERSION }}
+
+
+            Commit:
+            ${{ env.APP_COMMIT }}
+
+
+            Branch:
+            ${{ env.APP_BRANCH }}
+
+
+            Docker:
+            Image pushed successfully
+
+
+
+      # ===============================
+      # ❌ CI Failure Email
+      # ===============================
+      - name: ❌ CI Failure Email
+        if: failure()
+
+        uses: dawidd6/action-send-mail@v3
+
+        with:
+
+          server_address: smtp.gmail.com
+          server_port: 587
+
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+          subject: "🚨 CI FAILED - Backend Product Service"
+
+
+          to: ${{ secrets.MAIL_TO }}
+          cc: ${{ secrets.MAIL_CC }}
+
+          from: ${{ secrets.MAIL_USERNAME }}
+
+
+          body: |
+
+            🚨 CI BUILD FAILED
+
+
+            Application:
+            Backend Product Service
+
+
+            Commit:
+            ${{ env.APP_COMMIT }}
+
+
+            Branch:
+            ${{ env.APP_BRANCH }}
+
+
+            Action:
+            Check GitHub Actions logs immediately
