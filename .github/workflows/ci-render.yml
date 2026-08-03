@@ -267,15 +267,26 @@ jobs:
 
 
       # ===============================
-      # Set Version
+      # Set Version + Branch
       # ===============================
       - name: Set Version
-
+      
         run: |
-
+      
           VERSION=${GITHUB_REF#refs/tags/}
-
+      
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]
+          then
+            APP_BRANCH="main"
+          else
+            APP_BRANCH=${GITHUB_REF_NAME}
+          fi
+      
+      
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+      
+          echo "APP_BRANCH=$APP_BRANCH" >> $GITHUB_ENV
+          
 
 
 
@@ -289,7 +300,7 @@ jobs:
           docker build \
           --build-arg APP_VERSION=${APP_VERSION} \
           --build-arg APP_COMMIT=${GITHUB_SHA} \
-          --build-arg APP_BRANCH=release \
+          --build-arg APP_BRANCH=${APP_BRANCH} \
           -t ${{ secrets.DOCKERHUB_USERNAME }}/backend-product-service:${APP_VERSION} \
           .
 
