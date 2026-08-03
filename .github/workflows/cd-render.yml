@@ -24,7 +24,6 @@ on:
 
 
 
-
 jobs:
 
 
@@ -39,7 +38,6 @@ jobs:
 
 
     runs-on: ubuntu-latest
-
 
 
 
@@ -72,28 +70,25 @@ jobs:
 
       - name: Set Deployment Metadata
 
+
         run: |
 
 
-          git fetch --tags
-
-
-
-          TAGS=($(git tag --sort=-v:refname))
-
-
-
-          if [ ${#TAGS[@]} -eq 0 ]
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]
 
           then
 
-            VERSION="latest"
+            VERSION=${GITHUB_REF#refs/tags/}
+
 
           else
 
-            VERSION=${TAGS[0]}
+
+            VERSION="manual"
+
 
           fi
+
 
 
 
@@ -104,17 +99,21 @@ jobs:
 
 
 
+
           if [[ "${GITHUB_REF}" == refs/tags/* ]]
 
           then
 
             echo "BRANCH=main" >> $GITHUB_ENV
 
+
           else
 
             echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
 
+
           fi
+
 
 
 
@@ -125,7 +124,9 @@ jobs:
 
 
 
+
           echo "SERVICE_URL=https://backend-product-service-ncl2.onrender.com" >> $GITHUB_ENV
+
 
 
 
@@ -136,12 +137,10 @@ jobs:
       # 🚀 TRIGGER RENDER DEPLOYMENT
       # ===================================================
 
-      - name: Trigger Render Deployment
+      - name="Trigger Render Deployment"
 
         run: |
 
-
-          echo "🚀 Triggering Render Deployment..."
 
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
 
@@ -173,6 +172,7 @@ jobs:
 
             sleep 1
 
+
           done
 
 
@@ -201,6 +201,7 @@ jobs:
 
           for i in {1..10}
 
+
           do
 
 
@@ -208,11 +209,12 @@ jobs:
             STATUS=$(curl -s \
             -o /dev/null \
             -w "%{http_code}" \
-            "${{ env.SERVICE_URL }}")
+            "${{ secrets.APPLICATION_HEALTH_URL }}")
 
 
 
             echo "Health Check Attempt $i of 10 → HTTP $STATUS"
+
 
 
 
@@ -233,6 +235,7 @@ jobs:
 
 
 
+
             sleep 10
 
 
@@ -242,8 +245,7 @@ jobs:
 
 
 
-
-          echo "Health check failed after retries."
+          echo "Health check failed after 10 attempts."
 
           echo "DEPLOY_STATUS=FAILED" >> $GITHUB_ENV
 
@@ -267,7 +269,6 @@ jobs:
         if: success()
 
 
-
         uses: dawidd6/action-send-mail@v3
 
 
@@ -275,16 +276,18 @@ jobs:
         with:
 
 
+
           server_address: smtp.gmail.com
 
+          server_port: 465
 
-          server_port: 587
-
-
-          username: ${{ secrets.MAIL_USERNAME_MAIN }}
+          secure: true
 
 
-          password: ${{ secrets.MAIL_PASSWORD_MAIN }}
+
+          username: ${{ secrets.MAIL_USERNAME }}
+
+          password: ${{ secrets.MAIL_PASSWORD }}
 
 
 
@@ -292,14 +295,13 @@ jobs:
 
 
 
-          to: ${{ secrets.MAIL_USERNAME_MAIN }}
+          to: ${{ secrets.MAIL_TO }}
+
+          cc: ${{ secrets.MAIL_CC }}
 
 
-          cc: ${{ secrets.MAIL_TO_CC_MAIN }}
 
-
-
-          from: ${{ secrets.MAIL_USERNAME_MAIN }}
+          from: GitHub Actions CD
 
 
 
@@ -310,7 +312,9 @@ jobs:
             🚀 DEPLOYMENT SUCCESS
 
 
+
             =================================================
+
 
 
             🌐 SERVICE
@@ -326,6 +330,7 @@ jobs:
 
 
             =================================================
+
 
 
             🏷️ VERSION
@@ -361,6 +366,7 @@ jobs:
             =================================================
 
 
+
             ⏰ DEPLOY TIME UTC
 
             ${{ env.DEPLOY_TIME_UTC }}
@@ -393,25 +399,26 @@ jobs:
         if: failure()
 
 
-
         uses: dawidd6/action-send-mail@v3
-
 
 
 
         with:
 
 
+
           server_address: smtp.gmail.com
 
+          server_port: 465
 
-          server_port: 587
-
-
-          username: ${{ secrets.MAIL_USERNAME_MAIN }}
+          secure: true
 
 
-          password: ${{ secrets.MAIL_PASSWORD_MAIN }}
+
+          username: ${{ secrets.MAIL_USERNAME }}
+
+          password: ${{ secrets.MAIL_PASSWORD }}
+
 
 
 
@@ -419,14 +426,15 @@ jobs:
 
 
 
-          to: ${{ secrets.MAIL_USERNAME_MAIN }}
+
+          to: ${{ secrets.MAIL_TO }}
+
+          cc: ${{ secrets.MAIL_CC }}
 
 
-          cc: ${{ secrets.MAIL_TO_CC_MAIN }}
 
+          from: GitHub Actions CD
 
-
-          from: ${{ secrets.MAIL_USERNAME_MAIN }}
 
 
 
@@ -437,7 +445,9 @@ jobs:
             ❌ DEPLOYMENT FAILED
 
 
+
             =================================================
+
 
 
             Repository:
@@ -479,7 +489,9 @@ jobs:
             =================================================
 
 
+
             Please check:
+
 
 
             ❌ GitHub Actions logs

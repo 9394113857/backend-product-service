@@ -18,6 +18,7 @@ on:
 
 
 
+
 jobs:
 
 
@@ -63,6 +64,7 @@ jobs:
 
 
 
+
       # ===================================================
       # 🐍 PYTHON
       # ===================================================
@@ -74,6 +76,7 @@ jobs:
         with:
 
           python-version: "3.11"
+
 
 
 
@@ -93,6 +96,7 @@ jobs:
 
 
 
+
       # ===================================================
       # 🧪 TEST
       # ===================================================
@@ -101,12 +105,18 @@ jobs:
 
         env:
 
+          DATABASE_URL: sqlite:///test.db
+
+          SECRET_KEY: testing-secret
+
           FLASK_ENV: testing
 
 
         run: |
 
           PYTHONPATH=. pytest -v
+
+
 
 
 
@@ -133,46 +143,33 @@ jobs:
 
             VERSION=${GITHUB_REF#refs/tags/}
 
+            BRANCH="main"
 
-            echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-
-            echo "IMAGE=pythoncodelife/backend-product-service:${VERSION}" >> $GITHUB_ENV
-
-
-            echo "image=pythoncodelife/backend-product-service:${VERSION}" >> $GITHUB_OUTPUT
+            IMAGE="pythoncodelife/backend-product-service:${VERSION}"
 
 
           else
 
 
-            echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+            VERSION=${GITHUB_REF_NAME}
 
+            BRANCH=${GITHUB_REF_NAME}
 
-            echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-
-
-            echo "image=N/A" >> $GITHUB_OUTPUT
+            IMAGE="N/A"
 
 
           fi
 
 
 
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
-          then
+          echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
 
-            echo "BRANCH=main" >> $GITHUB_ENV
 
-          else
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-            echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-
-          fi
+          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
 
 
 
@@ -211,12 +208,15 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
 
 
+
           subject: "✅ CI SUCCESS | Backend Product Service"
+
 
 
           to: ${{ secrets.MAIL_TO }}
 
           cc: ${{ secrets.MAIL_CC }}
+
 
 
           from: GitHub Actions CI/CD
@@ -234,9 +234,11 @@ jobs:
             ${{ github.repository }}
 
 
+
             Version:
 
             ${{ env.VERSION }}
+
 
 
             Commit:
@@ -244,10 +246,10 @@ jobs:
             ${{ env.COMMIT }}
 
 
+
             Branch:
 
             ${{ env.BRANCH }}
-
 
 
 
@@ -280,12 +282,15 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
 
 
+
           subject: "❌ CI FAILED | Backend Product Service"
+
 
 
           to: ${{ secrets.MAIL_TO }}
 
           cc: ${{ secrets.MAIL_CC }}
+
 
 
           from: GitHub Actions CI/CD
@@ -303,10 +308,10 @@ jobs:
             ${{ github.repository }}
 
 
+
             Commit:
 
             ${{ github.sha }}
-
 
 
 
@@ -352,6 +357,8 @@ jobs:
 
 
 
+
+
       # ===================================================
       # 🐳 LOGIN
       # ===================================================
@@ -370,40 +377,6 @@ jobs:
 
 
       # ===================================================
-      # 📄 GENERATE BUILD INFO
-      # ===================================================
-
-      - name: Generate Build Info
-
-
-        run: |
-
-
-          cat > build_info.json << EOF
-
-
-          {
-            "version": "${{ needs.build-and-test.outputs.version }}",
-            "commit": "${GITHUB_SHA}",
-            "branch": "${GITHUB_REF_NAME}",
-            "build_time_utc": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
-            "build_time_ist": "$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')"
-          }
-
-
-          EOF
-
-
-
-          echo "===== BUILD INFO ====="
-
-          cat build_info.json
-
-
-
-
-
-      # ===================================================
       # 🏗️ BUILD IMAGE
       # ===================================================
 
@@ -414,25 +387,36 @@ jobs:
 
 
           docker build \
+
+          --build-arg APP_VERSION=${{ needs.build-and-test.outputs.version }} \
+
+          --build-arg APP_COMMIT=${GITHUB_SHA} \
+
+          --build-arg APP_BRANCH=main \
+
           -t ${{ needs.build-and-test.outputs.image }} .
 
 
 
 
 
+
       # ===================================================
-      # 🔍 VERIFY IMAGE
+      # 🔍 VERIFY BUILD INFO
       # ===================================================
 
-      - name: Check Docker Image Files
+      - name: Verify Build Info
 
 
         run: |
 
 
           docker run --rm \
+
           ${{ needs.build-and-test.outputs.image }} \
-          sh -c "ls -la /app && echo '--- build info ---' && cat /app/build_info.json"
+
+          sh -c "cat /app/build_info.json"
+
 
 
 
@@ -442,14 +426,17 @@ jobs:
       # 📤 PUSH VERSION
       # ===================================================
 
-      - name: Push Docker Image
+      - name: Push Version Image
 
 
         run: |
 
 
           docker push \
+
           ${{ needs.build-and-test.outputs.image }}
+
+
 
 
 
@@ -466,10 +453,13 @@ jobs:
 
 
           docker tag \
+
           ${{ needs.build-and-test.outputs.image }} \
+
           pythoncodelife/backend-product-service:latest
 
 
 
           docker push \
+
           pythoncodelife/backend-product-service:latest
