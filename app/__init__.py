@@ -29,6 +29,7 @@ def get_build_info():
         }
 
 
+
 # =====================================================
 # 🧾 LOG FORMATTER
 # =====================================================
@@ -44,9 +45,12 @@ class RequestFormatter(logging.Formatter):
             )
 
         except RuntimeError:
+
             record.request_id = "N/A"
 
+
         return super().format(record)
+
 
 
 # =====================================================
@@ -58,22 +62,17 @@ def create_app(testing: bool = False):
 
     app.config.from_object(Config)
 
+
     if testing:
+
         app.config["TESTING"] = True
 
-
-    # =================================================
-    # 🌎 ENVIRONMENT INFO
-    # =================================================
-    app.config["APP_ENV"] = os.getenv(
-        "APP_ENV",
-        "development"
-    )
 
 
     # =================================================
     # 🔗 EXTENSIONS
     # =================================================
+
     cors.init_app(app)
 
     db.init_app(app)
@@ -86,9 +85,11 @@ def create_app(testing: bool = False):
     jwt.init_app(app)
 
 
+
     # =================================================
-    # 🆔 REQUEST ID TRACKING
+    # 🆔 REQUEST ID
     # =================================================
+
     @app.before_request
     def assign_request_id():
 
@@ -96,6 +97,7 @@ def create_app(testing: bool = False):
             "X-Request-ID",
             str(uuid.uuid4())
         )
+
 
 
     @app.after_request
@@ -109,13 +111,16 @@ def create_app(testing: bool = False):
 
 
 
+
     # =================================================
     # 📂 LOGGING
     # =================================================
+
     logs_path = os.getenv(
         "LOG_PATH",
         "logs"
     )
+
 
     os.makedirs(
         logs_path,
@@ -123,35 +128,41 @@ def create_app(testing: bool = False):
     )
 
 
-    log_file = os.path.join(
-        logs_path,
-        "product.log"
-    )
-
-
     handler = TimedRotatingFileHandler(
-        log_file,
+
+        os.path.join(
+            logs_path,
+            "product.log"
+        ),
+
         when="midnight",
+
         backupCount=30,
+
         encoding="utf-8"
     )
 
 
+
     handler.setFormatter(
+
         RequestFormatter(
+
             "%(asctime)s "
             "[%(levelname)s] "
             "[REQ:%(request_id)s] "
             "%(message)s"
+
         )
+
     )
+
 
 
     if not app.logger.handlers:
 
-        app.logger.addHandler(
-            handler
-        )
+        app.logger.addHandler(handler)
+
 
 
     app.logger.setLevel(
@@ -160,9 +171,11 @@ def create_app(testing: bool = False):
 
 
 
+
     # =================================================
     # 📦 ROUTES
     # =================================================
+
     from app.api.product_routes import (
         product_bp,
         angular_product_bp
@@ -170,23 +183,34 @@ def create_app(testing: bool = False):
 
 
     app.register_blueprint(
+
         product_bp,
+
         url_prefix="/api/v1/products"
+
     )
 
 
     app.register_blueprint(
+
         angular_product_bp,
+
         url_prefix="/api/angularProduct"
+
     )
 
 
 
+
     # =================================================
-    # ❤️ CD HEALTH CHECK ENDPOINT
+    # ❤️ CD HEALTH CHECK
     # =================================================
+
     @app.get("/health")
     def health_check():
+
+        info = get_build_info()
+
 
         return jsonify({
 
@@ -194,21 +218,23 @@ def create_app(testing: bool = False):
 
             "service": "product-service",
 
-            "environment": app.config["APP_ENV"],
-
-            "build": get_build_info()
+            "build": info
 
         }), 200
+
+
 
 
 
     # =================================================
     # 🌐 ROOT HEALTH PAGE
     # =================================================
+
     @app.get("/")
     def health():
 
         info = get_build_info()
+
 
 
         if "text/html" in request.headers.get(
@@ -217,61 +243,83 @@ def create_app(testing: bool = False):
         ):
 
 
+
             html = f"""
 
             <!DOCTYPE html>
 
             <html>
 
+
             <head>
 
-                <title>
-                    Product Service Health
-                </title>
+            <title>
+            Product Service Health
+            </title>
 
 
-                <style>
+            <style>
 
-                    body {{
-                        font-family: Arial;
-                        background:#f4f6f8;
-                        padding:40px;
-                    }}
+            body {{
 
+                font-family: Arial;
 
-                    .card {{
+                background:#f4f6f8;
 
-                        max-width:600px;
-                        margin:auto;
-                        background:white;
-                        padding:20px;
-                        border-radius:10px;
-                        box-shadow:
-                        0 2px 10px rgba(0,0,0,.1);
+                padding:40px;
 
-                    }}
+            }}
 
 
-                    h1 {{
 
-                        text-align:center;
-                        color:#34a853;
+            .card {{
 
-                    }}
+                max-width:600px;
+
+                margin:auto;
+
+                background:white;
+
+                padding:20px;
+
+                border-radius:10px;
 
 
-                    .row {{
+                box-shadow:
+                0 2px 10px rgba(0,0,0,.1);
 
-                        display:flex;
-                        justify-content:space-between;
-                        padding:8px 0;
-                        border-bottom:1px solid #eee;
+            }}
 
-                    }}
 
-                </style>
+
+            h1 {{
+
+                text-align:center;
+
+                color:#34a853;
+
+            }}
+
+
+
+            .row {{
+
+                display:flex;
+
+                justify-content:space-between;
+
+                padding:8px 0;
+
+                border-bottom:1px solid #eee;
+
+            }}
+
+
+            </style>
+
 
             </head>
+
 
 
             <body>
@@ -285,58 +333,84 @@ def create_app(testing: bool = False):
             </h1>
 
 
+
+
             <div class="row">
+
             <b>Status</b>
-            <span>🟢 UP</span>
-            </div>
 
-
-            <div class="row">
-            <b>Environment</b>
             <span>
-            {app.config["APP_ENV"]}
+            🟢 UP
             </span>
+
             </div>
 
 
+
+
             <div class="row">
+
             <b>Version</b>
+
             <span>
             {info.get("version")}
             </span>
+
             </div>
 
 
+
+
             <div class="row">
+
             <b>Commit</b>
+
             <span>
             {info.get("commit")}
             </span>
+
             </div>
 
 
+
+
             <div class="row">
+
             <b>Branch</b>
+
             <span>
             {info.get("branch")}
             </span>
+
             </div>
 
 
+
+
             <div class="row">
+
             <b>UTC</b>
+
             <span>
             {info.get("build_time_utc")}
             </span>
+
             </div>
+
+
 
 
             <div class="row">
+
             <b>IST</b>
+
             <span>
             {info.get("build_time_ist")}
             </span>
+
             </div>
+
+
 
 
             </div>
@@ -344,12 +418,16 @@ def create_app(testing: bool = False):
 
             </body>
 
+
             </html>
 
             """
 
 
+
             return html, 200
+
+
 
 
 
