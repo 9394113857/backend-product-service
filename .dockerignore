@@ -14,11 +14,14 @@ venv/
 
 logs/
 
-# Ignore thase paths
+# Ignore these paths
 Enhancements and Practice folder/
 docs/
 practice/
 scripts/
 tests/
+
+# Ignore these files
+requirements-dev.txt
 
 
