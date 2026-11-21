@@ -426,13 +426,13 @@ jobs:
             ${{ env.VERSION }}
 
             Commit:
-            ${{ github.sha }}
+            ${{ env.COMMIT || github.sha }}
 
             Branch:
             ${{ env.BRANCH }}
 
             Trigger:
-            ${{ github.event_name }}
+            ${{ env.DEPLOY_TRIGGER || github.event_name }}
 
             Triggered By:
             ${{ github.actor }}
