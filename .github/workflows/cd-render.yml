@@ -10,6 +10,17 @@ run-name: 🚀 Deploy ${{ github.event_name }} | ${{ github.ref_name }} | ${{ gi
 on:
 
   # =====================================================
+  # 🤖 AUTOMATIC DEPLOYMENT AFTER A SUCCESSFUL CI RELEASE
+  # =====================================================
+
+  workflow_run:
+    workflows:
+      - "🚀 CI - Backend Product Service Render"
+    types:
+      - completed
+
+
+  # =====================================================
   # 🖐️ MANUAL DEPLOYMENT
   # =====================================================
 
@@ -26,6 +37,17 @@ on:
     - cron: "30 20 * * *"
 
 
+# The workflow_run token must be able to inspect the completed CI jobs.
+permissions:
+  contents: read
+  actions: read
+
+# Avoid overlapping automatic, manual, or scheduled deployments.
+concurrency:
+  group: backend-product-service-render-deployment
+  cancel-in-progress: false
+
+
 jobs:
 
   # =====================================================
@@ -38,7 +60,74 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 20
+
+    # Manual and scheduled deployments remain unchanged.
+    # Automatic CD is allowed only for a successful v* tag CI run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        startsWith(github.event.workflow_run.head_branch, 'v')
+      )
+
     steps:
+
+      # =====================================================
+      # 🔎 VERIFY BOTH CI AND DOCKER RELEASE JOBS
+      # =====================================================
+
+      - name: Verify CI And Docker Release Jobs
+
+        if: github.event_name == 'workflow_run'
+
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+
+        shell: bash
+
+        run: |
+          set -euo pipefail
+
+          echo "Checking completed Product Service CI run: $CI_RUN_ID"
+
+          RESPONSE=$(curl \
+            --silent \
+            --show-error \
+            --fail-with-body \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GH_REPOSITORY/actions/runs/$CI_RUN_ID/jobs?per_page=100")
+
+          TEST_RESULT=$(printf '%s' "$RESPONSE" | jq -r '
+            [.jobs[] | select(.name == "🧪 Test Backend Product Service")][0].conclusion // "missing"
+          ')
+
+          DOCKER_RESULT=$(printf '%s' "$RESPONSE" | jq -r '
+            [.jobs[] | select(.name == "🐳 Docker Release")][0].conclusion // "missing"
+          ')
+
+          echo "Product Service test result: $TEST_RESULT"
+          echo "Docker release result: $DOCKER_RESULT"
+
+          if [ "$TEST_RESULT" != "success" ]; then
+            echo "Product Service CI tests did not succeed. Deployment stopped."
+            exit 1
+          fi
+
+          if [ "$DOCKER_RESULT" != "success" ]; then
+            echo "Docker Release did not succeed. A skipped or failed release cannot deploy."
+            exit 1
+          fi
+
+          echo "CI tests and Docker image release both succeeded."
+
 
       # =====================================================
       # 📦 CHECKOUT
@@ -49,9 +138,10 @@ jobs:
         uses: actions/checkout@v4
 
         with:
-
+          # Automatic release deployments validate against main.
+          # Manual/scheduled runs retain the selected/default ref.
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
           fetch-depth: 0
-
           fetch-tags: true
 
 
@@ -61,48 +151,93 @@ jobs:
 
       - name: Detect Deployment Metadata
 
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+
+        shell: bash
+
         run: |
+          set -euo pipefail
 
-          TAGS=($(git tag --sort=-v:refname))
+          git fetch --force origin main
+          git fetch --force --tags
 
+          MAIN_SHA=$(git rev-parse refs/remotes/origin/main)
 
-          if [ ${#TAGS[@]} -eq 0 ]
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            VERSION="$RELEASE_TAG"
 
-          then
+            if [[ ! "$VERSION" =~ ^v[0-9] ]]; then
+              echo "Invalid Product Service release tag: $VERSION"
+              exit 1
+            fi
 
-            VERSION="latest"
+            if ! git rev-parse --verify "refs/tags/$VERSION^{commit}" >/dev/null 2>&1; then
+              echo "Release tag does not exist: $VERSION"
+              exit 1
+            fi
 
+            TAG_SHA=$(git rev-parse "refs/tags/$VERSION^{commit}")
+
+            if [ "$TAG_SHA" != "$RELEASE_SHA" ]; then
+              echo "Release tag commit does not match the successful CI commit."
+              echo "Tag commit: $TAG_SHA"
+              echo "CI commit:  $RELEASE_SHA"
+              exit 1
+            fi
+
+            if [ "$TAG_SHA" != "$MAIN_SHA" ]; then
+              echo "Release tag is not the current main branch HEAD."
+              echo "Tagged commit: $TAG_SHA"
+              echo "Main HEAD:     $MAIN_SHA"
+              echo "Render deployment stopped to prevent deploying a different commit."
+              exit 1
+            fi
+
+            COMMIT="$TAG_SHA"
+            DEPLOY_TRIGGER="Successful CI and Docker version-tag release"
           else
+            TAGS=($(git tag --sort=-v:refname))
 
-            VERSION=${TAGS[0]}
+            if [ ${#TAGS[@]} -eq 0 ]; then
+              VERSION="latest"
+            else
+              VERSION="${TAGS[0]}"
+            fi
 
+            COMMIT="$GITHUB_SHA"
+
+            if [ "$EVENT_NAME" = "schedule" ]; then
+              DEPLOY_TRIGGER="Scheduled daily deployment"
+            else
+              DEPLOY_TRIGGER="Manual deployment"
+            fi
           fi
 
+          BRANCH="main"
+          SERVICE_URL="https://backend-product-service-ncl2.onrender.com"
+          DEPLOY_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          DEPLOY_TIME_IST=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')
 
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-          echo "COMMIT=${GITHUB_SHA}" >> $GITHUB_ENV
-
-          echo "BRANCH=main" >> $GITHUB_ENV
-
-          echo "DEPLOY_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
-
-          echo "DEPLOY_TIME_IST=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')" >> $GITHUB_ENV
-
-          echo "SERVICE_URL=https://backend-product-service-ncl2.onrender.com" >> $GITHUB_ENV
-
-
-          echo "======================================"
-
-          echo "🚀 Backend Product Service Deployment"
+          {
+            echo "VERSION=$VERSION"
+            echo "COMMIT=$COMMIT"
+            echo "BRANCH=$BRANCH"
+            echo "DEPLOY_TRIGGER=$DEPLOY_TRIGGER"
+            echo "DEPLOY_TIME_UTC=$DEPLOY_TIME_UTC"
+            echo "DEPLOY_TIME_IST=$DEPLOY_TIME_IST"
+            echo "SERVICE_URL=$SERVICE_URL"
+          } >> "$GITHUB_ENV"
 
           echo "======================================"
-
+          echo "Backend Product Service Deployment"
+          echo "======================================"
           echo "Version: $VERSION"
-
-          echo "Commit:  ${GITHUB_SHA}"
-
-          echo "Branch:  main"
+          echo "Commit:  $COMMIT"
+          echo "Branch:  $BRANCH"
+          echo "Trigger: $DEPLOY_TRIGGER"
 
 
       # =====================================================
@@ -232,7 +367,7 @@ jobs:
             ${{ env.BRANCH }}
 
             Trigger:
-            ${{ github.event_name }}
+            ${{ env.DEPLOY_TRIGGER || github.event_name }}
 
             Triggered By:
             ${{ github.actor }}
